@@ -13,8 +13,21 @@ variable subnet_id {
 
 variable node_count {
   description = "Count of instances"
+  default     = 1
 }
 
-variable int_db_address {
-  description = "Internal db ip address"
+variable service_account_key_file {
+  description = "Account key file"
+}
+
+variable cloud_id {
+  description = "Cloud ID"
+}
+
+variable folder_id {
+  description = "Folder ID"
+}
+
+variable zone {
+  description = "Yandex net zone"
 }

@@ -1,7 +1,7 @@
 ---
 - become: true
-  hosts: docker
-  name: "Install Ruby && Bundler"
+  hosts: dockers
+  name: "Install Docker Container"
   tasks:
 
   - name: Start reddit docker container
