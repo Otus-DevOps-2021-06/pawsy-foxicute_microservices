@@ -1,5 +1,6 @@
 resource "yandex_compute_instance" "app" {
   name = "docker-app"
+  count = var.node_count
 
   labels = {
     tags = "docker-app"
@@ -13,7 +14,7 @@ resource "yandex_compute_instance" "app" {
 
   boot_disk {
     initialize_params {
-      image_id = var.app_disk_image
+      image_id = var.docker_disk_image
     }
   }
 
@@ -25,6 +26,4 @@ resource "yandex_compute_instance" "app" {
   metadata = {
     ssh-keys = "docker:${file(var.public_key_path)}"
   }
-
-
 }

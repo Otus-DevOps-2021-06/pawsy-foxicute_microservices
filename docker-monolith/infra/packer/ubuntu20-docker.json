@@ -7,8 +7,8 @@
         "source_image_family": "{{user `images_sourse_id`}}",
         "image_name": "docker-{{timestamp}}",
         "image_family": "docker-base",
-        "ssh_username": "docker",
-        "platform_id": "standard-v1",
+        "ssh_username": "ubuntu",
+        "platform_id": "standard-v2",
         "use_ipv4_nat": true,
         "subnet_id": "e9bmfnr0jifjdfrff2n4",
         "disk_type": "network-hdd"

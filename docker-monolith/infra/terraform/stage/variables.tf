@@ -5,7 +5,7 @@ variable "docker_disk_image" {
 
 variable "node_count" {
   description = "Counter"
-  default     = 1
+  default     = 2
 }
 
 variable "cloud_id" {
