@@ -1,0 +1,9 @@
+cloud_id        = "basdadsi4bpr"
+folder_id       = "b1gasdasda2"
+zone            = "ru-central1-a"
+image_id        = "fd8chj7g0mmar2irdiq3"
+public_key_path = "~/.ssh/appuser.pub"
+subnet_id       = "e9bsp46b89aurtoh4ai7"
+node_count      = 2
+#token       = ""
+service_account_key_file = "../secrets/key.json"

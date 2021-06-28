@@ -1,0 +1,3 @@
+[docker]
+appserver ansible_host=217.28.229.230
+

@@ -1,0 +1,5 @@
+{
+    "catalod_id" : "bla-bla",
+    "images_sourse_id" : "ubuntu-1604-lts",
+    "path_to_key" : "./packer/scripts/files/falsekey.json"
+}
