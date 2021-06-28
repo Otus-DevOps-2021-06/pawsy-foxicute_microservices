@@ -1,8 +1,6 @@
 ---
 - hosts: all
   become: yes
-  vars:
-    docker_compose_version: "1.27.4"
   tasks:
 
     - name: Update apt cache
@@ -23,6 +21,7 @@
         - curl
         - software-properties-common
         - gnupg-agent
+        - unzip
 
     - name: Add an apt signing key for Docker
       apt_key:
@@ -45,7 +44,33 @@
         - docker-ce-cli
         - containerd.io
 
-    - name: Add user to docker group
+    - name: Add user to the docker group.
       user:
-        name: "{{ansible_user}}"
-        group: docker
+        name: "ubuntu"
+        groups: "docker"
+        append: true
+
+    - name: Install pip dependencies
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - python3-setuptools
+        - python3-pip
+        - virtualenv
+
+    - name: Ensure pip is updated
+      pip:
+        name: pip
+
+    - name: Install pip packages for docker-compose
+      pip:
+        name: "{{ item }}"
+        executable: pip3
+        state: present
+      vars:
+        item:
+        - docker
+        - docker-compose
