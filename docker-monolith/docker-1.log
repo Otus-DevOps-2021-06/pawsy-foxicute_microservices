@@ -1,0 +1,13 @@
+Образ это state который состоит из слоев файловой системы.
+Образ состоит из слоев которые в режиме read-only.
+
+Из образов создаются экзмемпляры контейнеров.
+Контейнер это слой над обраом в который можно записывать изменения.
+Контейнер можно закомитеть и он станет образом с режимом чтения.
+
+Images:
+
+REPOSITORY                     TAG       IMAGE ID       CREATED          SIZE
+docker-monolith/docker-1.log   latest    d87014e4b62e   24 seconds ago   63.1MB
+ubuntu                         18.04     7d0d8fa37224   10 days ago      63.1MB
+hello-world                    latest    d1165f221234   3 months ago     13.3kB

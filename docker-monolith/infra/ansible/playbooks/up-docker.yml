@@ -1,0 +1,15 @@
+---
+- become: true
+  hosts: dockers
+  name: "Install Docker Container"
+  tasks:
+
+  - name: Start reddit docker container
+    docker_container:
+      container_default_behavior: no_defaults
+      name: reddit
+      image: felitsia/otus-reddit:1.0
+      state: started
+      restart_policy: always
+      ports:
+      - "9292:9292"

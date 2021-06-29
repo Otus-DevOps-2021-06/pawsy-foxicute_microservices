@@ -1,0 +1,76 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+
+    - name: Update apt cache
+      apt: update_cache=yes cache_valid_time=3600
+
+    - name: Upgrade all apt packages
+      apt: upgrade=dist
+
+    - name: Install dependencies
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - software-properties-common
+        - gnupg-agent
+        - unzip
+
+    - name: Add an apt signing key for Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add apt repository for stable version
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+
+    - name: Add user to the docker group.
+      user:
+        name: "ubuntu"
+        groups: "docker"
+        append: true
+
+    - name: Install pip dependencies
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+        - python3-setuptools
+        - python3-pip
+        - virtualenv
+
+    - name: Ensure pip is updated
+      pip:
+        name: pip
+
+    - name: Install pip packages for docker-compose
+      pip:
+        name: "{{ item }}"
+        executable: pip3
+        state: present
+      vars:
+        item:
+        - docker
+        - docker-compose

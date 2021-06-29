@@ -1,0 +1,4 @@
+[dockers]
+docker1 ansible_host=178.154.205.183
+docker2 ansible_host=84.252.131.84
+docker3 ansible_host=84.252.128.206

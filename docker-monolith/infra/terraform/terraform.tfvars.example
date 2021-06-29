@@ -1,0 +1,9 @@
+cloud_id                 = "b1g6asdasdasdasdasddssa"
+folder_id                = "asdasdasdasdasdasdasdsd"
+zone                     = "ru-central1-a"
+public_key_path          = "~/.ssh/yandex-cloud.pub"
+subnet_id                = "asdasdasd312312312s3131"
+service_account_key_file = "../../packer/key.json"
+private_key_path         = "~/.ssh/yandex-cloud"
+docker_disk_image        = "asdasdasdasd23123124dsas"
+node_count               = 3
