@@ -548,3 +548,112 @@ python             3.6.0-alpine   cb178ebbf0f2   4 years ago      88.6MB
 </details>
 
 ---
+
+## Lesson 17 : _Docker: сети. Docker-compose._
+
+Сделано:
+ + Работа с сетями _none, host, bridge_
+ + Работа с Docker-compose
+
+<details closed>
+<summary>Установка контейнера joffotron/docker-net-tools</summary>
+<br>
+
+```
+Unable to find image 'joffotron/docker-net-tools:latest' locally
+latest: Pulling from joffotron/docker-net-tools
+3690ec4760f9: Pull complete
+0905b79e95dc: Pull complete
+Digest: sha256:5752abdc4351a75e9daec681c1a6babfec03b317b273fc56f953592e6218d5b5
+Status: Downloaded newer image for joffotron/docker-net-tools:latest
+```
+</details>
+
+Результат команды `docker run -ti --rm --network none joffotron/docker-net-tools -c ifconfig`
+
+```
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+```
+
+Результат команды `docker run -ti --rm --network host joffotron/docker-net-tools -c ifconfig`
+
+Появились виртуальные интерфейсы `docker0` нужен для общения между контейнерами и `eth0` для выхода не внешку.
+
+<details closed>
+<summary> Интерфейсы </summary>
+<br>
+
+```
+docker0   Link encap:Ethernet  HWaddr 02:42:F2:8F:81:2B
+          inet addr:172.17.0.1  Bcast:172.17.255.255  Mask:255.255.0.0
+          inet6 addr: fe80::42:f2ff:fe8f:812b%32748/64 Scope:Link
+          UP BROADCAST MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:2 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:0 (0.0 B)  TX bytes:176 (176.0 B)
+
+eth0      Link encap:Ethernet  HWaddr D0:0D:12:7D:F4:62
+          inet addr:10.128.0.7  Bcast:10.128.0.255  Mask:255.255.255.0
+          inet6 addr: fe80::d20d:12ff:fe7d:f462%32748/64 Scope:Link
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:102936 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:71237 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:133512064 (127.3 MiB)  TX bytes:8429280 (8.0 MiB)
+
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1%32748/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:276 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:276 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:25178 (24.5 KiB)  TX bytes:25178 (24.5 KiB)
+```
+</details>
+
+После выполнения команды `docker run --network host -d nginx` 4 раза, рузультат:
+
+```
+0dc95b9ce855   nginx     "/docker-entrypoint.…"   3 minutes ago   Up 3 minutes             peaceful_maxwell
+```
+
+Думаю проблема в конфликте сети и назначения портов. Поэтому может использоваться один экземпляр контейнера с уникальными какими-то настройками сети.
+
+После выполнения команд `sudo ln -s /var/run/docker/netns /var/run/netns` и `sudo ip netns` начались создаваться экземпляры nginx в любом кол-во только с сетью _bridge_.
+
+```
+CONTAINER ID   IMAGE     COMMAND                  CREATED         STATUS         PORTS     NAMES
+9eb4d66d62c2   nginx     "/docker-entrypoint.…"   2 seconds ago   Up 1 second    80/tcp    hardcore_gould
+68093f7dcc7d   nginx     "/docker-entrypoint.…"   2 minutes ago   Up 2 minutes   80/tcp    trusting_shockley
+eee74175a0fd   nginx     "/docker-entrypoint.…"   2 minutes ago   Up 2 minutes   80/tcp    hungry_carson
+1d5919fb5c1a   nginx     "/docker-entrypoint.…"   3 minutes ago   Up 3 minutes   80/tcp    pedantic_bhaskara
+d74e46569046   nginx     "/docker-entrypoint.…"   3 minutes ago   Up 3 minutes             hardcore_feynman
+```
+
+Установка `docker-compose` только не через `pip`, а через `pip3`.
+Версия `docker-compose -v`:
+
+```
+docker-compose version 1.29.2, build unknown
+```
+
+Выполение комманд `export USERNAME=foxy`,  `docker-compose up -d`, `docker-compose ps`.
+
+```
+CONTAINER ID   IMAGE              COMMAND                  CREATED         STATUS         PORTS                                       NAMES
+69f373d8286c   mongo:3.2          "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   27017/tcp                                   src_post_db_1
+706763c6f1eb   foxy/ui:1.0        "puma"                   2 minutes ago   Up 2 minutes   0.0.0.0:9292->9292/tcp, :::9292->9292/tcp   src_ui_1
+ec05f9e64fe7   foxy/comment:1.0   "puma"                   2 minutes ago   Up 2 minutes                                               src_comment_1
+52b4461211bb   foxy/post:1.0      "python3 post_app.py"    2 minutes ago   Up 2 minutes                                               src_post_1
+```
+
+Cборка `docker-compose.yml` с отдельным файлом переменных выглядит так `docker-compose --env-file=docker.env up -d`. Нужно указывать путь до файла.
+---
