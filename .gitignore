@@ -17,4 +17,4 @@ jdauphant.nginx
 vault.key
 
 #Docker
-dock.env
+*.dock.env
