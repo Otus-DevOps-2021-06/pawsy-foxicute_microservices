@@ -16,3 +16,5 @@ versions.tf
 jdauphant.nginx
 vault.key
 
+#Docker
+docker-compose.env

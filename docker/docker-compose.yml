@@ -1,0 +1,106 @@
+version: '3.3'
+
+services:
+  prometheus:
+    image: ${USERNAME}/prometheus
+    ports:
+      - '9090:9090'
+    volumes:
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=1d'
+    networks:
+      backend_network:
+        aliases:
+          - node-exporter
+      frontend_network:
+        aliases:
+          - node-exporter
+
+  node-exporter:
+    image: prom/node-exporter:${PROM_VER}
+    user: root
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($$|/)"'
+    networks:
+      backend_network:
+        aliases:
+          - node-exporter
+      frontend_network:
+        aliases:
+          - node-exporter
+
+  post_db:
+    image: mongo:${MONGO_VER}
+    command: mongod --port 27017
+    environment:
+        MONGO_INITDB_ROOT_USERNAME: ${MG_USER}
+        MONGO_INITDB_ROOT_PASSWORD: ${MG_PASS}
+        MONGO_INITDB_DATABASE: ${MG_BASE}
+    ports:
+        - '27017:27017'
+    volumes:
+      - post_db:/data/db
+    networks:
+      backend_network:
+        aliases:
+          - post_db
+          - comment_db
+
+  ui:
+    image: ${USERNAME}/ui:${UI_VER}
+    ports:
+      - ${UI_HOST_PORT}:${UI_CONT_PORT}
+    networks:
+      frontend_network:
+        aliases:
+          - ui
+
+  post:
+    image: ${USERNAME}/post:${POST_VER}
+    networks:
+      backend_network:
+        aliases:
+          - post_db
+      frontend_network:
+        aliases:
+          - post_db
+
+  comment:
+    image: ${USERNAME}/comment:${COMMENT_VER}
+    networks:
+      backend_network:
+        aliases:
+          - post_db
+          - comment_db
+      frontend_network:
+        aliases:
+          - post_db
+          - comment_db
+
+  mongodb-exporter:
+    image: docker.io/bitnami/mongodb-exporter:0
+    command: >
+      sh -c "./mongodb_exporter-linux-amd64 \
+      -logtostderr -mongodb.uri mongodb://${MG_USER}:${MG_PASS}@${MG_URL}:27017/{MG_BASE}?authSource=admin \
+      -groups.enabled 'asserts,durability,background_flusshing,connections,extra_info,\
+      global_lock,index_counters,network,op_counters,op_counters_repl,\
+      memory,locks,metrics'"
+    ports:
+      - 9001:9001
+
+volumes:
+  post_db:
+  prometheus_data:
+
+networks:
+  frontend_network:
+  backend_network:

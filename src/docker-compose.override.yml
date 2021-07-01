@@ -1,0 +1,61 @@
+version: '3.3'
+
+services:
+
+  mongodb:
+    image: mongo:${POST_DB_V}
+    container_name: reddit-mongodb
+    volumes:
+     - mongodb:/data/db
+    networks:
+      mongodb:
+        aliases:
+         - post_db
+         - comment_db
+
+  ui:
+    build: ./ui
+    image: ${USERNAME}/ui:${UI_V}
+    container_name: reddit-ui
+    volumes:
+     - ./ui/:/app/:ro
+    ports:
+     - ${OUT_UI_PORT}:${INT_UI_PORT}/tcp
+    networks:
+     - reddit
+    command: bash -c "cd /app && puma --debug -w 2"
+
+  post:
+    build: ./post-py
+    image: ${USERNAME}/post:${POST_V}
+    container_name: reddit-post
+    volumes:
+     - ./post-py/:/app/:ro
+    networks:
+      mongodb: {}
+      reddit:
+        aliases:
+         - post
+
+  comment:
+    build: ./comment
+    image: ${USERNAME}/comment:${COMMENT_V}
+    container_name: reddit-comment
+    volumes:
+     - ./comment/:/app/:ro
+    networks:
+      mongodb: {}
+      reddit:
+        aliases:
+         - comment
+    command: bash -c "cd /app && puma --debug -w 2"
+
+volumes:
+  mongodb:
+    name: mongodb_volume
+
+networks:
+  reddit:
+    name: reddit_network
+  mongodb:
+    name: mongodb_network
