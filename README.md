@@ -657,3 +657,39 @@ ec05f9e64fe7   foxy/comment:1.0   "puma"                   2 minutes ago   Up 2 
 
 Cборка `docker-compose.yml` с отдельным файлом переменных выглядит так `docker-compose --env-file=docker.env up -d`. Нужно указывать путь до файла.
 ---
+
+## Lesson 20 _Устройство Gitlab CI. Построение процесса непрерывной поставки_
+
+Задание в `infro` репозитории, в будущем будет переделанно.
+
+## Lesson 22 _Введение в мониторинг. Системы мониторинга._
+
+Сделано:
+ + Создание нового VM, накатка Docker'a, установка контейнера с `Prometheus`.
+ + Мониторинг состояния микросервисов.
+ + Сбор метрик хоста с использованием экспортера
+ + Задания со *
+   - Создан Makefile.
+   - Добавлен эксплолеры.
+
+
+После поднятия VM, установки Докера через `docker-machine` поднимам микросервисы командой `docker-compose --env-file=docker-compose.env up -d`.
+
+```
+Creating network "docker_backend_network" with the default driver
+Creating network "docker_frontend_network" with the default driver
+Creating docker_post_db_1          ... done
+Creating docker_post_1             ... done
+Creating docker_ui_1               ... done
+Creating docker_comment_1          ... done
+Creating docker_node-exporter_1    ... done
+Creating docker_prometheus_1       ... done
+Creating docker_mongodb-exporter_1 ... done
+```
+
+Добавлен `Makefile` по пути `pawsy-foxicute_microservices/docker/Makefile`.
+Файл прокомментирован.
+
+Добавлены эксплолеры смотреть в файле `pawsy-foxicute_microservices/docker/docker-compose.yml`.
+
+Добавлены `job`ы в файле `pawsy-foxicute_microservices/monitoring/prometheus/prometheus.yml`.
