@@ -1,0 +1,13 @@
+global:
+  slack_api_url: 'https://hooks.slack.com/services/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'
+
+route:
+  receiver: 'slack-notifications'
+  routes:
+    - receiver: 'slack-notifications'
+      continue: true
+
+receivers:
+- name: 'slack-notifications'
+  slack_configs:
+  - channel: '#denis_yusupov'

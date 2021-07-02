@@ -656,11 +656,14 @@ ec05f9e64fe7   foxy/comment:1.0   "puma"                   2 minutes ago   Up 2 
 ```
 
 Cборка `docker-compose.yml` с отдельным файлом переменных выглядит так `docker-compose --env-file=docker.env up -d`. Нужно указывать путь до файла.
+
 ---
 
 ## Lesson 20 _Устройство Gitlab CI. Построение процесса непрерывной поставки_
 
 Задание в `infro` репозитории, в будущем будет переделанно.
+
+---
 
 ## Lesson 22 _Введение в мониторинг. Системы мониторинга._
 
@@ -693,3 +696,98 @@ Creating docker_mongodb-exporter_1 ... done
 Добавлены эксплолеры смотреть в файле `pawsy-foxicute_microservices/docker/docker-compose.yml`.
 
 Добавлены `job`ы в файле `pawsy-foxicute_microservices/monitoring/prometheus/prometheus.yml`.
+
+---
+
+## Lesson 23 _Мониторинг приложения и инфраструкт фраструктуры_
+
+Сделано:
+ + Мониторинг Docker контейнеров с помощью `cAdvisor`
+ + Визуализация метрик с помощью `Grafana`
+ + Сбор метрик приложения
+ + Настройка и проверка алертинга
+ + Заданяи со * _Кроме последнего пока что_
+ + Добавлен Telegraf
+
+Поднимаем контейнеры:
+> `docker-compose up -d`
+
+```
+Creating network "docker_backend_network" with the default driver
+Creating network "docker_frontend_network" with the default driver
+Creating docker_comment_1 ... done
+Creating docker_post_db_1 ... done
+Creating docker_ui_1      ... done
+Creating docker_post_1    ... done
+```
+
+> `docker-compose -f docker-compose-monitoring.yml up -d`
+
+```
+Creating docker_cadvisor_1      ... done
+Creating mongodb-exporter       ... done
+Creating docker_node-exporter_1 ... done
+Creating docker_prometheus_1    ... done
+Creating docker_grafana_1       ... done
+```
+
+Смотрим сетевые записи.
+> `docker network ls`
+
+```
+NETWORK ID     NAME                      DRIVER    SCOPE
+20e31a486d31   bridge                    bridge    local
+d92bae6632a4   docker_backend_network    bridge    local
+23dc20f4a584   docker_default            bridge    local
+13e47f705726   docker_frontend_network   bridge    local
+87dc18da7b05   docker_prometheus         bridge    local
+32466cc754e1   host                      host      local
+66fce8bd8822   none                      null      local
+```
+
+`Grafana` нужно добавить в группу сети.
+
+```
+...
+networks:
+      prometheus:
+```
+
+Был скачен Dashboard [Docker and system monitoring](https://grafana.com/grafana/dashboards/893)
+
+В Grafan'e были созданы дашборды. Есть проблема по остелживанию `Rate of UI HTTP Requests with Error`.
+
+Не один из фильтров метрики не работает:
+  + `rate(ui_request_count{http_status=~"[45].."}[1m])`
+  + `rate(ui_request_count{http_status=~"^[45].*"}[1m])`
+
+
+`AlertManager rule` не работает, хотя сервис запущен :с
+
+Добавление `Telegraf`'a
+
+В `prometheus.yml` добавляем:
+
+```
+- job_name: 'telegraf'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['mynode:9126']
+```
+
+В `docker-compose-monitoring.yml` добавляем:
+
+```
+telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    network_mode: "host"
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    environment:
+      INFLUXDB_URI: "http://localhost:8086"
+    networks:
+      prometheus:
+```
+
+---

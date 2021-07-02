@@ -1,0 +1,102 @@
+services:
+  prometheus:
+    image: ${USERNAME}/prometheus
+    ports:
+      - '9090:9090'
+    volumes:
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention=1d'
+    networks:
+      prometheus:
+      backend_network:
+      frontend_network:
+
+  cadvisor:
+    image: google/cadvisor:v0.29.0
+    volumes:
+      - '/:/rootfs:ro'
+      - '/var/run:/var/run:rw'
+      - '/sys:/sys:ro'
+      - '/var/lib/docker/:/var/lib/docker:ro'
+    ports:
+      - '8080:8080'
+    networks:
+      prometheus:
+      backend_network:
+
+  node-exporter:
+    image: prom/node-exporter:${PROM_VER}
+    user: root
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($$|/)"'
+    networks:
+      prometheus:
+
+  mongodb-exporter:
+    image: bitnami/mongodb-exporter:latest
+    user: root
+    container_name: mongodb-exporter
+    networks:
+      - front_net
+      - back_net
+    command:
+      - '--mongodb.uri=post_db:27017'
+    networks:
+      prometheus:
+      backend_network:
+
+  grafana:
+    image: grafana/grafana:5.0.0
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    networks:
+      prometheus:
+
+
+  alertmanager:
+    image: ${USERNAME}/alertmanager:v0.14.0
+    container_name: alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+    ports:
+      - 9093:9093
+    networks:
+      prometheus:
+        aliases:
+          - alertmanager
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    network_mode: "host"
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    environment:
+      INFLUXDB_URI: "http://localhost:8086"
+    networks:
+      prometheus:
+
+networks:
+  prometheus:
+  backend_network:
+  frontend_network:
+
+volumes:
+  grafana_data:
+  prometheus_data:

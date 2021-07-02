@@ -17,4 +17,4 @@ jdauphant.nginx
 vault.key
 
 #Docker
-docker-compose.env
+.env
