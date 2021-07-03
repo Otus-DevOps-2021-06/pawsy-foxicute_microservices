@@ -762,7 +762,8 @@ networks:
   + `rate(ui_request_count{http_status=~"^[45].*"}[1m])`
 
 
-`AlertManager rule` не работает, хотя сервис запущен :с
+`AlertManager rule` работает, проверить результат можно в чате Slack'a `#denis_yusupov`
+
 
 Добавление `Telegraf`'a
 
@@ -789,5 +790,6 @@ telegraf:
     networks:
       prometheus:
 ```
+
 
 ---

@@ -1,0 +1,7 @@
+port:
+  tcp:27017:
+    listening: true
+
+process:
+  mongod:
+    running: true

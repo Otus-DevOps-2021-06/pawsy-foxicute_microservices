@@ -2,11 +2,13 @@ version: '3.3'
 
 services:
   prometheus:
-    image: ${USERNAME}/prometheus
+    image: ${USERNAME}/prometheus:local
+    container_name: prometheus
     ports:
       - '9090:9090'
     volumes:
       - prometheus_data:/prometheus
+      - ../monitoring/prometheus/alerts.yml /alertmanager/alert.rules:/alertmanager/alert.rules
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -18,6 +20,7 @@ services:
 
   cadvisor:
     image: google/cadvisor:v0.29.0
+    container_name: cadvisor
     volumes:
       - '/:/rootfs:ro'
       - '/var/run:/var/run:rw'
@@ -31,6 +34,7 @@ services:
 
   node-exporter:
     image: prom/node-exporter:${PROM_VER}
+    container_name: node-exporter
     user: root
     volumes:
       - /proc:/host/proc:ro
@@ -45,6 +49,7 @@ services:
 
   mongodb-exporter:
     image: bitnami/mongodb-exporter:latest
+    container_name: mongodb
     user: root
     container_name: mongodb-exporter
     networks:
@@ -58,6 +63,7 @@ services:
 
   grafana:
     image: grafana/grafana:5.0.0
+    container_name: grafana
     volumes:
       - grafana_data:/var/lib/grafana
     environment:
@@ -72,7 +78,7 @@ services:
 
 
   alertmanager:
-    image: ${USERNAME}/alertmanager:v0.14.0
+    image: ${USERNAME}/alertmanager:local
     container_name: alertmanager
     command:
       - '--config.file=/etc/alertmanager/config.yml'
