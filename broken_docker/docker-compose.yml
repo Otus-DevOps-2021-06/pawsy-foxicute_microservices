@@ -55,9 +55,9 @@ services:
     environment:
      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
     networks:
-      frontend_network:
-        aliases:
-          - comment
+#      frontend_network:
+#        aliases:
+#          - comment
       backend_network:
         aliases:
           - comment

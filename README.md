@@ -791,5 +791,102 @@ telegraf:
       prometheus:
 ```
 
+---
+
+## Lesson 25 _Логирование и распределенная трассировка_
+
+Сделано:
+ + Подготовка окружения
+ + Логирование Docker-контейнеров
+ + Сбор неструктурированных логов
+ + Визуализация логов
+ + Сбор структурированных логов
+ + Установка и работа с `Zipkin`.
+
+Билдим новые образы из [git'a](https://github.com/express42/reddit/tree/logging) и пушим в _Docker Hub_ c тегом `logging`.
+
+Cтавим `goland`.
+
+Добавляем путь `export PATH=/$HOME/go/bin:$PATH` для драйвера в файл `~/.bashrc`.
+Создаем переменную в сессии `export SA_KEY_PATH='~/key.json'`. Путь для ключа SA YC.
+
+В конечном итоге был создан docker-machine c драйвером `generic`.
+
+Пример лога из Kibana:
+
+| Time          | Source |
+|---------------|--------|
+| ``` Jul 4, 2021 @ 17:36:29.000 ``` | ``` container_id:f3f1bb960b163ec0c7969b97bdfbd27773a1b46818d16c370bf72b82a9d4c4bb container_name:/reddit-post source:stdout log:{"addr": "172.20.0.2", "event": "request", "level": "info", "method": "GET", "path": "/healthcheck?", "request_id": null, "response_status": 200, "service": "post", "timestamp": "2021-07-04 13:36:29"} @timestamp:Jul 4, 2021 @ 17:36:29.000 @log_name:service.post _id:N5e8cXoBgixQ_5kZFoJM _type:access_log _index:fluentd-20210704 ``` |
+
+Настройка `grok'ов` шаблонов.
+
+Установка и работа с `Zipkin`.
+
+Все сервисы работают.
+
+```
+CONTAINER ID   IMAGE                      COMMAND                  CREATED              STATUS              PORTS                                                                                                    NAMES
+88f6e66f31fe   felitsia/ui:logging        "puma"                   About a minute ago   Up About a minute   0.0.0.0:9292->9292/tcp, :::9292->9292/tcp                                                                reddit-front
+6fb1ac563440   mongo:3.2                  "docker-entrypoint.s…"   About a minute ago   Up About a minute   27017/tcp                                                                                                mongodb
+86c869a3ca7a   felitsia/post:logging      "python3 post_app.py"    About a minute ago   Up About a minute                                                                                                            reddit-post
+6e7addd3b336   felitsia/comment:logging   "puma"                   About a minute ago   Up About a minute                                                                                                            reddit-comment
+4e60738134d3   felitsia/fluentd:latest    "tini -- /bin/entryp…"   2 minutes ago        Up About a minute   5140/tcp, 0.0.0.0:24224->24224/tcp, 0.0.0.0:24224->24224/udp, :::24224->24224/tcp, :::24224->24224/udp   fluentd
+ba31805eb76e   openzipkin/zipkin:2.21.0   "/busybox/sh run.sh"     6 minutes ago        Up 6 minutes        9410/tcp, 0.0.0.0:9411->9411/tcp, :::9411->9411/tcp                                                      zipkin
+67dc8d3f57ef   kibana:7.4.0               "/usr/local/bin/dumb…"   6 minutes ago        Up 6 minutes        0.0.0.0:5601->5601/tcp, :::5601->5601/tcp                                                                kibana
+1d191c917e7b   elasticsearch:7.4.0        "/usr/local/bin/dock…"   6 minutes ago        Up 6 minutes        0.0.0.0:9200->9200/tcp, :::9200->9200/tcp, 9300/tcp
+```
+
+Билдим баговые образы, на них будет тег `bug`. Список:
+
+```
+REPOSITORY          TAG       IMAGE ID       CREATED          SIZE
+felitsia/ui         bug       7d57134ee5b1   27 seconds ago   786MB
+felitsia/post       bug       c25159e3485c   2 minutes ago    916MB
+felitsia/comment    bug       1fe68ef3a403   3 minutes ago    764MB
+```
+
+### Задание со *
+Ошибка в логах сервиса `reddit-post`
+
+```
+ "event":"internal_error",
+   "level":"error",
+   "method":"GET",
+   "path":"/posts?",
+   "remote_addr":"172.18.0.2",
+   "request_id":"3d414155-43b5-49c2-8d4d-eebd96e4e92f",
+   "service":"post",
+   "timestamp":"2021-07-05 08:31:57",
+   "traceback":"Traceback (most recent call last):\n  File \"/usr/local/lib/python3.6/site-packages/flask/app.py\", line 1612, in full_dispatch_request\n    rv = self.dispatch_request()\n  File \"/usr/local/lib/python3.6/site-packages/flask/app.py\", line 1598, in dispatch_request\n    return self.view_functions[rule.endpoint](**req.view_args)\n  File \"/app/post_app.py\", line 96, in posts\n    posts = find_posts()\n  File \"/usr/local/lib/python3.6/site-packages/py_zipkin/zipkin.py\", line 296, in __exit__\n    self.stop(_exc_type, _exc_value, _exc_traceback)\n  File \"/usr/local/lib/python3.6/site-packages/py_zipkin/zipkin.py\", line 314, in stop\n    self.logging_context.stop()\n  File \"/usr/local/lib/python3.6/site-packages/py_zipkin/logging_helper.py\", line 76, in stop\n    self.log_spans()\n  File \"/usr/local/lib/python3.6/site-packages/py_zipkin/logging_helper.py\", line 185, in log_spans\n    transport_handler=self.transport_handler,\n  File \"/usr/local/lib/python3.6/site-packages/py_zipkin/logging_helper.py\", line 325, in log_span\n    transport_handler(message)\n  File \"/app/post_app.py\", line 53, in http_transport\n    body = '\\x0c\\x00\\x00\\x00\\x01' + encoded_span\nTypeError: must be str, not bytes\n"
+```
+
+Первая ошибка в коде, файл `/app/post_app.py`, метод `def http_transport(encoded_span)` , 53 линия:
+
+`body = '\x0c\x00\x00\x00\x01' + encoded_span` здесь нужно указать явное приведение типов в byte, в итоге приводим все в такой вид `body = b'\x0c\x00\x00\x00\x01' + encoded_span` и пересобираем образ.
+
+Вторая ошибка была в методе c POST запросом `db_find_single_post`, куда ссылается Zipkin.
+Методом `time.sleep(3)` приостанавливался поток на 3 секунды.
+
+```
+@zipkin_span(service_name='post', span_name='db_find_single_post')
+def find_post(id):
+    start_time = time.time()
+    try:
+        post = app.db.find_one({'_id': ObjectId(id)})
+    except Exception as e:
+        log_event('error', 'post_find',
+                  "Failed to find the post. Reason: {}".format(str(e)),
+                  request.values)
+        abort(500)
+    else:
+        stop_time = time.time()  # + 0.3
+        resp_time = stop_time - start_time
+        app.post_read_db_seconds.observe(resp_time)
+        time.sleep(3)
+        log_event('info', 'post_find',
+                  'Successfully found the post information',
+                  {'post_id': id})
+        return dumps(post)
+```
 
 ---
