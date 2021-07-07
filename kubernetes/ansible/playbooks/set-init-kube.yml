@@ -1,0 +1,39 @@
+---
+- hosts: init
+  vars:
+    pod_network_cidr: 10.244.0.0/16
+  become: true
+  tasks:
+
+  - name: Set all settings like node master
+    include: set-master-kube.yml
+
+  #++10.244.0.0/16
+  - name: Initialize the Kubernetes cluster using kubeadm
+    command: kubeadm init --apiserver-advertise-address={{ lookup('dig', ansible_host) }} --apiserver-cert-extra-sans={{ lookup('dig', ansible_host) }}  --node-name k8s-master --pod-network-cidr=10.244.0.0/16
+
+  - name: Setup kubeconfig for user
+    become: true
+    command: "{{ item }}"
+    with_items:
+      - mkdir -p /home/{{ lookup('env', 'USER') }}/.kube
+      - cp -i /etc/kubernetes/admin.conf /home/{{ lookup('env', 'USER') }}/.kube/config
+      - chown {{ lookup('env', 'USER') }}:{{ lookup('env', 'USER') }} /{{ lookup('env', 'USER') }}/vagrant/.kube/config
+
+  - name: Copy file calico.yaml
+    template:
+      src: ../templates/calico.j2
+      dest: /tmp/calico.yaml
+      owner: root
+      group: root
+
+  - name: Install calico pod network
+    become: false
+    command: kubectl create -f /tmp/calico.yaml
+
+  - name: Generate join command
+    command: kubeadm token create --print-join-command
+    register: join_command
+
+  - name: Copy join command to local file
+    local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"

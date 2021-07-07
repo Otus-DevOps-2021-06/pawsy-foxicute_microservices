@@ -802,6 +802,7 @@ telegraf:
  + Визуализация логов
  + Сбор структурированных логов
  + Установка и работа с `Zipkin`.
+ + Задание со *, найдены ошибки.
 
 Билдим новые образы из [git'a](https://github.com/express42/reddit/tree/logging) и пушим в _Docker Hub_ c тегом `logging`.
 
@@ -888,5 +889,139 @@ def find_post(id):
                   {'post_id': id})
         return dumps(post)
 ```
+
+---
+
+## Введение в Kubernetes
+
+Сделано:
+ + Поднятие инстансов.
+ + Установка Kubernates на все инстансы.
+ + Создание Master и Worker нод.
+ + Задание со *.
+   - Созданы модули в `Terraform` для поднятия определенных типов инстансов под `Kubernates`.
+   - Созданы плейбуки для настройки определенных типов инстансов.
+
+Создаем две VM, одна будет `master`, другая `worker` для Kubernates.
+MASTER:
+
+```
+yc compute instance create \
+ --name master-node-1 \
+ --zone ru-central1-a \
+ --cores=2 --memory=2 \
+ --network-interface subnet-name=default-ru-central1-a,nat-ip-version=ipv4 \
+ --create-boot-disk image-folder-id=standard-images,image-family=ubuntu-1804-lts,size=15 \
+ --ssh-key ~/.ssh/yandex-cloud.pub
+```
+
+WORKER:
+
+```
+yc compute instance create \
+ --name worker-node-1 \
+ --zone ru-central1-a \
+ --cores=2 --memory=2 \
+ --network-interface subnet-name=default-ru-central1-a,nat-ip-version=ipv4 \
+ --create-boot-disk image-folder-id=standard-images,image-family=ubuntu-1804-lts,size=15 \
+ --ssh-key ~/.ssh/yandex-cloud.pub
+```
+
+Переходим по SSH в master ноду и [ставим kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/). Но для начала на VM надо [установить Docker](https://docs.docker.com/engine/install/ubuntu/). Или поставить Docker, через docker-machine.
+
+На мастер ноду ставим: `kubelet kubeadm kubectl`.
+На воркер ноду ставим: `kubelet kubeadm`.
+
+>` kubeadm` — инструмент командной строки, который устанавливает и настраивает различные компоненты кластера стандартным образом.
+> `kubelet` — системная служба / программа, которая работает на всех узлах и обрабатывает операции на уровне узлов.
+> `kubectl` — инструмент командной строки, используемый для отправки команд на кластер через сервер API.
+
+После установки трех компонентов Kuber'a запускаем команду:
+
+```
+sudo kubeadm init --apiserver-cert-extra-sans=178.154.224.211 --apiserver-advertise-address=0.0.0.0 --control-plane-endpoint=178.154.224.211 --pod-network-cidr=10.244.0.0/16
+```
+
+После успешной установки получим сообщение о настройке использования кластера.
+
+```
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Alternatively, if you are the root user, you can run:
+
+  export KUBECONFIG=/etc/kubernetes/admin.conf
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+You can now join any number of control-plane nodes by copying certificate authorities
+and service account keys on each node and then running the following as root:
+
+kubeadm join 178.154.224.211:6443 --token ce31vc.dtsl1x476vo3rczq \
+        --discovery-token-ca-cert-hash
+        sha256:e3c28e9f831794c279a3877****************************************** \
+        --control-plane
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 178.154.224.211:6443 --token ce31vc.dtsl1x476vo3rczq \
+        --discovery-token-ca-cert-hash sha256:e3c28e9f831794c279a3877*******************************************
+
+```
+
+Делаем аналогичную установку на Worker ноде, за исключением что не ставим `kubectl`.
+
+Не делаем инициализацию. Джоиним воркер ноду с мастером:
+
+```
+sudo kubeadm join 178.154.224.211:6443 --token ce31vc.dtsl1x476vo3rczq \
+        --discovery-token-ca-cert-hash sha256:e3c28e9f831794c279a38773******************************************
+```
+
+Скачиваем `calico.yaml`меняем значение `CALICO_IPV4POOL_CIDR` на `10.244.0.0/16`.
+Получаем статус нод:
+
+```
+NAME                   STATUS   ROLES                  AGE    VERSION
+fhm8m0t9k9ogrlq59s75   Ready    <none>                 25m    v1.21.2
+fhmjnt1farqiimi3l37c   Ready    control-plane,master   103m   v1.21.2
+yc-user@fhmjnt1farqiimi3l37c:~$
+```
+
+С помощью `Terraform` автоматизируем создание инстансов.
+Можно создавать любое кол-во master'ов worker'ов и кластерных init'ов.
+В моем случае 1 init, 1 master, 2 worker.
+
+
+```
+module.init[0].yandex_compute_instance.init: Creating...
+module.worker[1].yandex_compute_instance.worker: Creating...
+module.master[0].yandex_compute_instance.master: Creating...
+module.worker[0].yandex_compute_instance.worker: Creating...
+module.worker[1].yandex_compute_instance.worker: Still creating... [10s elapsed]
+module.init[0].yandex_compute_instance.init: Still creating... [10s elapsed]
+module.master[0].yandex_compute_instance.master: Still creating... [10s elapsed]
+module.worker[0].yandex_compute_instance.worker: Still creating... [10s elapsed]
+module.worker[1].yandex_compute_instance.worker: Still creating... [20s elapsed]
+module.init[0].yandex_compute_instance.init: Still creating... [20s elapsed]
+module.master[0].yandex_compute_instance.master: Still creating... [20s elapsed]
+module.worker[0].yandex_compute_instance.worker: Still creating... [20s elapsed]
+module.worker[1].yandex_compute_instance.worker: Creation complete after 23s [id=fhm6kr7lgmnd0mms7nh9]
+module.worker[0].yandex_compute_instance.worker: Creation complete after 23s [id=fhmrc4j7s47ciu13jc0k]
+module.init[0].yandex_compute_instance.init: Creation complete after 24s [id=fhmefd52mp55ven7jtpc]
+module.master[0].yandex_compute_instance.master: Creation complete after 26s [id=fhm5jpmu6i2594q7pb7k]
+
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+```
+
+Ансибл плейбуки созданы, но не проверенны. Есть роли для настройки init хоста, а также мастер и воркер хоста.
+Есть общий плейбук для установки Docker на все хосты.
 
 ---
