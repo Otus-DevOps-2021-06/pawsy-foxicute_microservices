@@ -1,4 +1,5 @@
 #Mine
+.kube-join
 secrets/
 key.json
 variables.json

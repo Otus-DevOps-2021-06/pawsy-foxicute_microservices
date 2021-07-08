@@ -1,0 +1,8 @@
+cloud_id                 = "b1ghqk0n------------"
+folder_id                = "b1g0spc6------------"
+zone                     = "ru-central1-a"
+image_id                 = "fd8dasdafg2sjcg804"
+public_key_path          = "~/.ssh/yandex-cloud.pub"
+subnet_id                = "e9bjrgi6q-----------"
+service_account_key_file = "../files/key.json"
+private_key_path         = "~/.ssh/yandex-cloud"
