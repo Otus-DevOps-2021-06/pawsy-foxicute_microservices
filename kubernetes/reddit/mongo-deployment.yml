@@ -28,13 +28,21 @@ spec:
       containers:
       - image: mongo:3.2
         name: mongo
+# for passing test
         volumeMounts:
-        - name: mongo-persistent-storage
+        - name: mongo-gce-pd-storage
           mountPath: /data/db
       volumes:
-      - name: mongo-persistent-storage
-        persistentVolumeClaim:
-          claimName:  mongo-pvc
+       - name: mongo-gce-pd-storage
+         persistentVolumeClaim:
+           claimName: mongo-pvc
+#        volumeMounts:
+#        - name: mongo-persistent-storage
+#          mountPath: /data/db
+#      volumes:
+#      - name: mongo-persistent-storage
+#        persistentVolumeClaim:
+#          claimName:  mongo-pvc
 #      volumes:
 #      - name: mongo-persistent-storage
 #        emptyDir: {}
