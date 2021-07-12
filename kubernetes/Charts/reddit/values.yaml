@@ -1,0 +1,24 @@
+
+comment:
+  image:
+    repository: felitsia/comment
+    tag: logging
+  service:
+    externalPort: 9292
+
+post:
+  image:
+    repository: felitsia/post
+    tag: logging
+  service:
+    externalPort: 5000
+
+ui:
+  image:
+    repository: felitsia/ui
+    tag: logging
+  service:
+    externalPort: 9292
+
+mongodb:
+  usePassword: false
