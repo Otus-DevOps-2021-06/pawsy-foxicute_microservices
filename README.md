@@ -1032,8 +1032,9 @@ Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
  + Создан инстанс в YC для Kubernates.
  + На инстансе установлен Docker через docker-machine.
  + Установка `kubectl` и `minikube`.
- +
- +
+ + Разворачивание Kubernates в облаке.
+ + Задание со *.
+
 
 Установка `kubectl` была осуществленна первым способ с [офф. сайта](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/).
 
@@ -1168,3 +1169,115 @@ ui           NodePort    10.96.174.174   <none>        9292:31963/TCP   25s
 ```
 
 ---
+
+## Lesson 29 _Kubernetes. Networks, Storages._
+
+Сделано:
+ + Работа с Kuberantes в YC.
+ + Работа с Ingress, LoadBalancer, Secrets, NetworkPolicy и др.
+ + Работа с Volume, VolumePerstince, VolumePerstinceClaim.
+
+Создан сертификат в виде манифеста `pawsy-foxicute_microservices/kubernetes/reddit/secret.yaml`.
+
+Создаем LoadBalancer:
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ kubectl get services -n dev -o wide
+NAME         TYPE           CLUSTER-IP      EXTERNAL-IP      PORT(S)        AGE   SELECTOR
+comment      ClusterIP      10.96.128.57    <none>           9292/TCP       64m   app=reddit,component=comment
+comment-db   ClusterIP      10.96.143.166   <none>           27017/TCP      64m   app=reddit,comment-db=true,component=mongo
+mongodb      ClusterIP      10.96.236.138   <none>           27017/TCP      64m   app=reddit,component=mongo
+post         ClusterIP      10.96.236.83    <none>           5000/TCP       64m   app=reddit,component=post
+post-db      ClusterIP      10.96.239.91    <none>           27017/TCP      64m   app=reddit,component=mongo,post-db=true
+ui           LoadBalancer   10.96.133.181   84.201.167.201   80:31380/TCP   14m   app=reddit,component=ui
+```
+
+Создаем Ingress `pawsy-foxicute_microservices/kubernetes/reddit/ui-ingress.yml` предварительно скачав [его](https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.34.1/deploy/static/provider/cloud/deploy.yaml).
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ kubectl get ingress -n dev
+Warning: extensions/v1beta1 Ingress is deprecated in v1.14+, unavailable in v1.22+; use networking.k8s.io/v1 Ingress
+NAME   CLASS    HOSTS   ADDRESS          PORTS   AGE
+ui     <none>   *       84.201.167.240   80      2m21s
+
+```
+
+Создаем манифест сетевых политик `pawsy-foxicute_microservices/kubernetes/reddit/mongo-network-policy.yml`, предварительно включив в YC.
+
+Сразу добавляем правило для `post` сервиса.
+
+```
+- podSelector:
+        matchLabels:
+          app: reddit
+          component: post
+
+```
+
+Смотрим сколько сущностей с сетевыми политиками созданы.
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ kubectl get networkpolicy -n dev
+NAME              POD-SELECTOR                 AGE
+deny-db-traffic   app=reddit,component=mongo   4m40s
+```
+
+Смотрим описание созданой сетевой политики.
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ kubectl describe networkpolicy deny-db-traffic -n dev
+Name:         deny-db-traffic
+Namespace:    dev
+Created on:   2021-07-09 12:47:03 +0000 UTC
+Labels:       app=reddit
+Annotations:  <none>
+Spec:
+  PodSelector:     app=reddit,component=mongo
+  Allowing ingress traffic:
+    To Port: <any> (traffic allowed to all ports)
+    From:
+      PodSelector: app=reddit,component=comment
+    From:
+      PodSelector: app=reddit,component=post
+  Not affecting egress traffic
+  Policy Types: Ingress
+```
+
+Создаем хранилище в YC указав обязательно зону, в которой у нас крутися Kuberantes.
+
+```
+Создание диска
+yc compute disk create \
+ --name k8s \
+ --size 4 \
+ --zone ru-central1-b \
+ --description "disk for k8s"
+```
+
+Смотрим все сетевые хранилища.
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ yc compute disk list
++----------------------+------+-------------+---------------+--------+----------------------+--------------+
+|          ID          | NAME |    SIZE     |     ZONE      | STATUS |     INSTANCE IDS     | DESCRIPTION  |
++----------------------+------+-------------+---------------+--------+----------------------+--------------+
+| epd380mu8731k8o5maim |      | 68719476736 | ru-central1-b | READY  | epdloud0fsi6jllut4e8 |              |
+| epdfjufta1ooci7a2pih | k8s  |  4294967296 | ru-central1-b | READY  |                      | disk for k8s |
+| epdt6s5dop0adgaigm08 |      | 68719476736 | ru-central1-b | READY  | epd3bbonj23ifn3j5cjo |              |
++----------------------+------+-------------+---------------+--------+----------------------+--------------+
+```
+
+Сотрим созданые Volume.
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ kubectl get pv -n dev
+NAME       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM           STORAGECLASS     REASON   AGE
+mongo-pv   4Gi        RWO            Retain           Bound    dev/mongo-pvc   yc-network-hdd            40s
+```
+
+Смотрим все запросы к сетевым хранилищам.
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ kubectl get pvc -n dev
+NAME        STATUS   VOLUME     CAPACITY   ACCESS MODES   STORAGECLASS     AGE
+mongo-pvc   Bound    mongo-pv   4Gi        RWO            yc-network-hdd   22s
+```
