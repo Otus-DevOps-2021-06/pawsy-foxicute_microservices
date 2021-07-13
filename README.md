@@ -1447,6 +1447,9 @@ helm upgrade --install grafana stable/grafana --set "adminPassword=admin" \
 kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode
 ```
 
+Новый файл с дашбордом находится по пути `pawsy-foxicute_microservices/monitoring/grafana/dashboards/UI_Service_Monitoring Lesson 31.json`.
+
+
 Настройка Alertmanager:
 
 ```
