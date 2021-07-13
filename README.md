@@ -892,7 +892,7 @@ def find_post(id):
 
 ---
 
-## Введение в Kubernetes
+## Lesson 27 _Введение в Kubernetes_
 
 Сделано:
  + Поднятие инстансов.
@@ -1023,5 +1023,148 @@ Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
 
 Ансибл плейбуки созданы, но не проверенны. Есть роли для настройки init хоста, а также мастер и воркер хоста.
 Есть общий плейбук для установки Docker на все хосты.
+
+---
+
+## Lesson 28 _Kubernetes. Запуск кластера и приложения. Модель безопасности_
+
+Сделано:
+ + Создан инстанс в YC для Kubernates.
+ + На инстансе установлен Docker через docker-machine.
+ + Установка `kubectl` и `minikube`.
+ +
+ +
+
+Установка `kubectl` была осуществленна первым способ с [офф. сайта](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/).
+
+Устновка VirtualBox'a была с локального репозитория. Версия:
+
+```
+5.2.42_Ubuntur137960
+```
+
+Так как на облаке нет поддержки VT-X/AMD-v, ставим Minikube через Docker driver.
+Но для начала добаим пользователя в группе `docker` и ребутним сервер.
+
+```
+sudo groupadd docker
+sudo usermod -aG docker $USER
+```
+
+```
+minikube start --driver=docker --kubernetes-version 1.19.7
+```
+
+Установка Minikube:
+
+<details closed>
+<summary> Результат установки </summary>
+<br>
+
+```
+😄  minikube v1.21.0 on Ubuntu 18.04 (vbox/amd64)
+✨  Using the docker driver based on user configuration
+
+🧯  The requested memory allocation of 1992MiB does not leave room for system overhead (total system memory: 1992MiB). You may face stability issues.
+💡  Suggestion: Start minikube with less memory allocated: 'minikube start --memory=1992mb'
+
+👍  Starting control plane node minikube in cluster minikube
+🚜  Pulling base image ...
+    > gcr.io/k8s-minikube/kicbase...: 359.09 MiB / 359.09 MiB  100.00% 12.86 Mi
+🔥  Creating docker container (CPUs=2, Memory=1992MB) ...
+🐳  Preparing Kubernetes v1.19.7 on Docker 20.10.7 ...
+    ▪ Generating certificates and keys ...
+    ▪ Booting up control plane ...
+    ▪ Configuring RBAC rules ...
+🔎  Verifying Kubernetes components...
+    ▪ Using image gcr.io/k8s-minikube/storage-provisioner:v5
+🌟  Enabled addons: default-storageclass
+
+❗  /usr/local/bin/kubectl is version 1.21.2, which may have incompatibilites with Kubernetes 1.19.7.
+    ▪ Want kubectl v1.19.7? Try 'minikube kubectl -- get pods -A'
+🏄  Done! kubectl is now configured to use "minikube" cluster and "default" namespace by default
+```
+</details>
+
+Проверяем запущенные контейнеры командой `docker ps`.
+
+```
+CONTAINER ID   IMAGE                                 COMMAND                  CREATED              STATUS              PORTS                                                                                                                                  NAMES
+d92a105a4512   gcr.io/k8s-minikube/kicbase:v0.0.23   "/usr/local/bin/entr…"   About a minute ago   Up About a minute   127.0.0.1:49157->22/tcp, 127.0.0.1:49156->2376/tcp, 127.0.0.1:49155->5000/tcp, 127.0.0.1:49154->8443/tcp, 127.0.0.1:49153->32443/tcp   minikube
+```
+
+Проверяем ноды `kubectl get nodes` :
+
+```
+NAME       STATUS   ROLES    AGE     VERSION
+minikube   Ready    master   3m24s   v1.19.7
+```
+
+Создаем свой кластер и настраиваем контекст:
+
+```
+kubectl config set-cluster foxy-cluster
+kubectl config set-credentials foxy
+
+kubectl config set-context foxy-context \
+ --cluster=foxy-cluster \
+ --user=foxy
+
+Context "context_name" created.
+```
+
+Создаем POD'ы:
+
+```
+kubectl apply -f ui-deployment.yml
+```
+
+Смотрим статус `kubectl get deployments`:
+
+```
+NAME   READY   UP-TO-DATE   AVAILABLE   AGE
+ui     3/3     3            3           10m
+```
+
+Список подов `kubectl get pods`:
+
+```
+NAME                  READY   STATUS    RESTARTS   AGE
+ui-5df49d4cb4-2rj42   1/1     Running   0          84s
+ui-5df49d4cb4-nxm6q   1/1     Running   0          2m17s
+ui-5df49d4cb4-xd5wt   1/1     Running   0          90s
+yc-user@kubernates:~/pods$
+```
+
+Поднятие кластера и нодов на обалке.
+Список нод в докерах:
+
+```
+NAME                        STATUS   ROLES    AGE   VERSION    INTERNAL-IP   EXTERNAL-IP     OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+cl1riji54gqj4lgp4jv6-ajyh   Ready    <none>   45m   v1.19.10   10.129.0.23   84.252.141.26   Ubuntu 20.04.2 LTS   5.4.0-72-generic   docker://20.10.6
+cl1riji54gqj4lgp4jv6-upin   Ready    <none>   45m   v1.19.10   10.129.0.4    84.252.137.24   Ubuntu 20.04.2 LTS   5.4.0-72-generic   docker://20.10.6
+```
+
+Работа подов и сервисов на облаке (скрин есть):
+
+```
+pawsy@foxy-server:~$ kubectl get pods -n dev
+NAME                      READY   STATUS    RESTARTS   AGE
+comment-549b6d77c-6x9j7   1/1     Running   0          3m11s
+mongo-6b9fcfd49f-x5kx7    1/1     Running   0          3m9s
+post-7b6d4d87b5-tnjwf     1/1     Running   0          3m8s
+ui-78f45df854-7bsz4       1/1     Running   0          3m6s
+ui-78f45df854-bzq7l       1/1     Running   0          3m6s
+ui-78f45df854-rpljq       1/1     Running   0          3m6s
+
+pawsy@foxy-server:~$ kubectl get service -n dev
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+comment      ClusterIP   10.96.251.179   <none>        9292/TCP         30s
+comment-db   ClusterIP   10.96.233.192   <none>        27017/TCP        31s
+mongodb      ClusterIP   10.96.182.170   <none>        27017/TCP        28s
+post         ClusterIP   10.96.202.149   <none>        5000/TCP         26s
+post-db      ClusterIP   10.96.238.77    <none>        27017/TCP        27s
+ui           NodePort    10.96.174.174   <none>        9292:31963/TCP   25s
+```
 
 ---
