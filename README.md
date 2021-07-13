@@ -1281,3 +1281,88 @@ pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes$ kubectl get pvc -n 
 NAME        STATUS   VOLUME     CAPACITY   ACCESS MODES   STORAGECLASS     AGE
 mongo-pvc   Bound    mongo-pv   4Gi        RWO            yc-network-hdd   22s
 ```
+
+---
+
+## Lesson 30. _CI/CD в Kubernetes_
+
+Сделано:
+ + Работа с Helm 3
+ + Развертывание Gitlab в Kubernetes
+ + Запуск CI/CD конвейера в Kubernetes
+
+Создаем новый кластер в YC с двумя узлами.
+
+Устанавливаем Helm 3, нужда в Tiller отпадает.
+
+Установка чарта в Helm 3, флаг `-- name` ненужен.
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices$ helm install test-ui-1 kubernetes/Charts/ui
+W0712 11:13:12.812016   25221 warnings.go:70] extensions/v1beta1 Ingress is deprecated in v1.14+, unavailable in v1.22+; use networking.k8s.io/v1 Ingress
+W0712 11:13:13.899349   25221 warnings.go:70] extensions/v1beta1 Ingress is deprecated in v1.14+, unavailable in v1.22+; use networking.k8s.io/v1 Ingress
+NAME: test-ui-1
+LAST DEPLOYED: Mon Jul 12 11:13:10 2021
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
+
+Проверка:
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices$ helm ls
+NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
+test-ui-1       default         1               2021-07-12 11:13:10.261208542 +0000 UTC deployed        ui-1.0.0        1
+```
+
+Установка `mongodb` будет с репозитория `bitnami`.
+
+```
+Getting updates for unmanaged Helm repositories...
+...Successfully got an update from the "https://charts.bitnami.com/bitnami" chart repository
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "nginx-stable" chart repository
+Update Complete. ⎈Happy Helming!⎈
+Saving 4 charts
+Downloading mongodb from repo https://charts.bitnami.com/bitnami
+Deleting outdated charts
+```
+
+Для того чтобы Ingress работал нужен [Ingress Nginx](https://kubernetes.github.io/ingress-nginx/deploy/#using-helm). Установить можно в три команды:
+
+```
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx
+```
+
+Установка gitlab через Helm.
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes/Charts/gitlab-omnibus$ helm ls
+NAME            NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                APP VERSION
+gitlab          default         1               2021-07-12 14:14:27.820908243 +0000 UTC deployed        gitlab-omnibus-0.1.37
+ingress-nginx   default         1               2021-07-12 13:36:44.491461982 +0000 UTC deployed        ingress-nginx-3.34.0 0.47.0
+```
+
+Результат в Ingress:
+
+```
+pawsy@foxy-server:~/pawsy-foxicute_microservices/kubernetes/Charts/gitlab-omnibus$ kubectl get ingress
+Warning: extensions/v1beta1 Ingress is deprecated in v1.14+, unavailable in v1.22+; use networking.k8s.io/v1 Ingress
+NAME            CLASS    HOSTS                                                                   ADDRESS         PORTS     AGE
+gitlab-gitlab   <none>   gitlab-gitlab,registry.example.com,mattermost.example.com + 1 more...   84.252.136.32   80, 443   89s
+```
+
+Для работы с git'ом во избежание `server certificate verification failed. CAfile: none CRLfile: none` объявляем переменную `export GIT_SSL_NO_VERIFY=1`.
+
+Для избежания ошибок в CI тестах создаим юзера, роль, группу и забайндим:
+
+```
+kubectl create clusterrolebinding serviceaccounts-cluster-admin   --clusterrole=cluster-admin   --group=system:serviceaccounts
+```
+
+
+---

@@ -3,6 +3,7 @@
 secrets/
 key.json
 variables.json
+Gitlab_ci
 #Terraform
 *.tfstate
 *.tfstate.*.backup
