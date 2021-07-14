@@ -1571,5 +1571,37 @@ serverFiles:
             - localhost:9090
 ```
 
+Установки Kibana.
+Добавлям репозиторий:
+
+```
+helm repo add elastic https://helm.elastic.co/
+```
+
+Обновляем репозиторий:
+
+```
+helm repo update
+```
+
+Ставим кабину:
+
+```
+helm upgrade --install kibana elastic/kibana \
+--set "ingress.enabled=true" \
+--set "ingress.host={reddit-kibana}" \
+--version 6.5
+```
+
+Если в установки Kibana не сработал set `--set "ingress.host={reddit-kibana}"`
+То вручную правим манифест файла `kubectl edit ingress kibana-kibana`
+
+```
+...
+  - host: reddit-kibana
+...
+```
+
+Все файлы `pawsy-foxicute_microservices/kubernetes/efk` обновлены для работы Kibana.
 
 ---
