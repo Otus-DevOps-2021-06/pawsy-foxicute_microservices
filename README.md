@@ -1364,5 +1364,244 @@ gitlab-gitlab   <none>   gitlab-gitlab,registry.example.com,mattermost.example.c
 kubectl create clusterrolebinding serviceaccounts-cluster-admin   --clusterrole=cluster-admin   --group=system:serviceaccounts
 ```
 
+---
+
+## Lesson 31. _Kubernetes. Мониторинг и логирование_
+
+Сделано:
+ + Развертывание Prometheus в k8s
+ + Настройка Prometheus и Grafana для сбора метрик
+ + Настройка Alertmanager (Задание со *)
+ + Настройка EFK для сбора логов
+
+
+Использовался `Prometheus` [этот](https://github.com/prometheus-community/helm-charts/tree/main/charts/prometheus).
+
+Чтобы решить проблему отображение таргетов нод от Prometheus, повысим ему права:
+
+```
+kubectl create clusterrolebinding dashboard-admin-sa --clusterrole=cluster-admin --serviceaccount=default:prometheus-server
+```
+
+Прописываем сбор метрик эндпоинтов в конце файла `pawsy-foxicute_microservices/kubernetes/Charts/prometheus/custom_values.yml`.
+
+```
+      - job_name: 'reddit-endpoints'
+
+        kubernetes_sd_configs:
+          - role: endpoints
+
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_app]
+            action: keep # Используем действие keep, чтобы оставить
+            regex: reddit
+```
+
+Разбиение Job'ов на сервисы. Конфиг:
+
+```
+# POST
+      - job_name: 'post-endpoints'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            action: keep
+            regex: post
+
+# UI
+      - job_name: 'ui-endpoints'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            action: keep
+            regex: ui
+
+# COMMENT
+      - job_name: 'comment-endpoints'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_component]
+            action: keep
+            regex: comment
+```
+
+
+Установка `Grafana`, добавим репозиторий:
+helm repo add grafana https://grafana.github.io/helm-charts
+
+Установка:
+
+```
+helm upgrade --install grafana stable/grafana --set "adminPassword=admin" \
+--set "service.type=NodePort" \
+--set "ingress.enabled=true" \
+--set "ingress.hosts={reddit-grafana}"
+```
+
+Команда чтобы получить пароль:
+
+```
+kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode
+```
+
+Новый файл с дашбордом находится по пути `pawsy-foxicute_microservices/monitoring/grafana/dashboards/UI_Service_Monitoring Lesson 31.json`.
+
+
+Настройка Alertmanager:
+
+```
+alertmanager:
+  enabled: true
+
+  serviceAccountName: default
+
+  name: alertmanager
+
+  image:
+    repository: prom/alertmanager
+    tag: v0.22.2
+    pullPolicy: IfNotPresent
+
+  extraArgs: {}
+
+  baseURL: "http://alert-prom/"
+
+  extraEnv: {}
+
+  configMapOverrideName: ""
+
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    hosts: ["alert-prom"]
+    tls: []
+
+  nodeSelector: {}
+
+  persistentVolume:
+    enabled: false
+    accessModes:
+      - ReadWriteOnce
+    annotations: {}
+    existingClaim: ""
+    mountPath: /data
+    size: 2Gi
+    subPath: ""
+
+  podAnnotations: {}
+
+  replicaCount: 1
+
+  resources: {}
+
+  service:
+    annotations: {}
+    labels: {}
+    clusterIP: ""
+    externalIPs: []
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+    servicePort: 80
+    type: ClusterIP
+
+configmapReload:
+  name: configmap-reload
+  image:
+    repository: jimmidyson/configmap-reload
+    tag: v0.1
+    pullPolicy: IfNotPresent
+  resources: {}
+
+alertmanagerFiles:
+  alertmanager.yml:
+    global:
+      slack_api_url: 'https://hooks.slack.com/services/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'
+
+    route:
+      receiver: 'slack-notifications'
+
+    receivers:
+    - name: 'slack-notifications'
+      slack_configs:
+      - channel: '#denis_yusupov'
+
+serverFiles:
+  alerting_rules.yml:
+    groups:
+      - name: alert_rules
+        rules:
+          - alert: InstanceDown
+            expr: up == 0
+            for: 10s
+            labels:
+              severity: page
+            annotations:
+              description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 10 seconds'
+              summary: 'Instance {{ $labels.instance }} down'
+
+          - alert: k8s API server is down
+            expr: up{job="kubernetes-apiservers"} == 0
+            for: 10s
+            labels:
+              severity: page
+            annotations:
+              description: 'k8s API server is offline for more than 10 seconds'
+              summary: 'k8s API server'
+
+  alerts: {}
+  rules: {}
+
+  prometheus.yml:
+    rule_files:
+      - /etc/config/alerting_rules.yml
+      - /etc/config/rules
+
+
+    global:
+      scrape_interval: 30s
+
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets:
+            - localhost:9090
+```
+
+Установки Kibana.
+Добавлям репозиторий:
+
+```
+helm repo add elastic https://helm.elastic.co/
+```
+
+Обновляем репозиторий:
+
+```
+helm repo update
+```
+
+Ставим кабину:
+
+```
+helm upgrade --install kibana elastic/kibana \
+--set "ingress.enabled=true" \
+--set "ingress.host={reddit-kibana}" \
+--version 6.5
+```
+
+Если в установки Kibana не сработал set `--set "ingress.host={reddit-kibana}"`
+То вручную правим манифест файла `kubectl edit ingress kibana-kibana`
+
+```
+...
+  - host: reddit-kibana
+...
+```
+
+Все файлы `pawsy-foxicute_microservices/kubernetes/efk` обновлены для работы Kibana.
 
 ---
